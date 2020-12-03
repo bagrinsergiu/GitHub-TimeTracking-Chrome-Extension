@@ -42,13 +42,19 @@ const issuesEnhancer = {
   token: null,
   username: null,
   repository: null,
-  getIssueId($issueRow) {
-    const id = $(".gh-header-title .f1-light", $issueRow)
-      .html()
-      .replace("#", "");
 
-    if (id) {
-      return id;
+  getIssueId($issueRow) {
+    const $node = $(
+      ".gh-header-title .f1-light, .js-project-issue-details-container .js-issue-number",
+      $issueRow
+    );
+
+    if ($node.length) {
+      const id = $node.html().replace("#", "");
+
+      if (id) {
+        return id;
+      }
     }
 
     return null;
@@ -78,13 +84,13 @@ const issuesEnhancer = {
 
     $wrapper
       .contents()
-      .filter(function () {
+      .filter(function() {
         return (
           this.nodeType == 8 &&
           this.nodeValue.startsWith("GitHubIssuesEnhancements=")
         );
       })
-      .each(function (i, e) {
+      .each(function(i, e) {
         const json = e.nodeValue
           .replace("GitHubIssuesEnhancements=", "")
           .trim();
@@ -92,10 +98,9 @@ const issuesEnhancer = {
           obj = JSON.parse(json);
           metadata = {
             ...{
-              estimated: "",
-              done: "0",
+              estimated: ""
             },
-            ...obj,
+            ...obj
           };
         } catch (e) {
           console.log(e);
@@ -104,9 +109,7 @@ const issuesEnhancer = {
 
     if (metadata == null) {
       metadata = { estimated: "", done: "0" };
-      $wrapper.append(
-        '\n\n\n<!--GitHubIssuesEnhancements={"estimated":"", "done":"0"}-->'
-      );
+      $wrapper.append('\n\n\n<!--GitHubIssuesEnhancements={"estimated":""}-->');
     }
 
     return metadata;
@@ -122,13 +125,13 @@ const issuesEnhancer = {
     let found = false;
     $wrapper
       .contents()
-      .filter(function () {
+      .filter(function() {
         return (
           this.nodeType == 8 &&
           this.nodeValue.startsWith("GitHubIssuesEnhancements=")
         );
       })
-      .each(function (i, e) {
+      .each(function(i, e) {
         found = true;
         e.nodeValue = "GitHubIssuesEnhancements=" + JSON.stringify(metadata);
       });
@@ -149,15 +152,15 @@ const issuesEnhancer = {
         url: `https://api.github.com/repos/${self.username}/${self.repository}/issues/${id}`,
         dataType: "json",
         type: "GET",
-        beforeSend: function (xhr) {
+        beforeSend: function(xhr) {
           xhr.setRequestHeader("Authorization", "token " + self.token);
         },
-        success: function (data) {
+        success: function(data) {
           //console.log(data);
         },
-        error: function (data) {
+        error: function(data) {
           //console.log(data);
-        },
+        }
       });
     } catch (e) {
       console.log(e);
@@ -171,19 +174,19 @@ const issuesEnhancer = {
     $.ajax({
       url: `https://api.github.com/repos/${self.username}/${self.repository}/issues/${id}`,
       type: "POST",
-      beforeSend: function (xhr) {
+      beforeSend: function(xhr) {
         xhr.setRequestHeader("Authorization", "token " + self.token);
       },
       data: JSON.stringify({
-        body: body,
-      }),
+        body: body
+      })
     });
   },
 
   init() {
     const self = this;
 
-    $(".repository-content").each(function (index) {
+    $(".repository-content").each(function() {
       const $this = $(this);
       const $controls = $(html);
 
@@ -193,7 +196,7 @@ const issuesEnhancer = {
       self.getIssueMetadata($this);
     });
 
-    $(".estimated").change(function (e) {
+    $(".estimated").change(function(e) {
       const $this = $(this);
       const $issueRow = $this.closest(".repository-content");
       const metadata = $issueRow.data("metadata");
@@ -201,6 +204,79 @@ const issuesEnhancer = {
       metadata.estimated = $this.val();
       self.setIssueMetadata($issueRow);
     });
+
+    // in Projects
+    const $project = $(".project-columns-container");
+
+    if ($project.length) {
+      const doingColumn = $(
+        ".js-project-columns-container .project-column"
+      ).filter(function() {
+        const title = $(this)
+          .find(".js-project-column-name")
+          .html();
+
+        return title.includes("Doing..");
+      });
+
+      if (doingColumn.length) {
+        const node = doingColumn.get(0);
+
+        self.updateProjectColumn(doingColumn);
+
+        const handleUpdate = column => {
+          self.updateProjectColumn($(column));
+        };
+
+        self.mutationObserver(node, handleUpdate);
+      }
+    }
+  },
+
+  updateProjectColumn($column) {
+    const self = this;
+
+    $column.find("article.issue-card").each(function() {
+      const $card = $(this);
+      const $node = $card.find(".js-project-card-issue-link");
+      const $dataHello = $node.find(".data-new-hello");
+      const issueId = self.getIssueId($card);
+
+      self.getIssue(issueId).then(data => {
+        const metadata = self.parseBody(data.body);
+        let htmlContent = metadata.estimated;
+
+        if (metadata.estimated === "") {
+          htmlContent = "======";
+        }
+
+        if ($dataHello.length) {
+          $dataHello.html(htmlContent);
+        } else {
+          const html = `<div class="data-new-hello">${htmlContent}</div>`;
+          $card.find(".js-project-card-issue-link").append(html);
+        }
+      });
+    });
+  },
+
+  mutationObserver(node, cb) {
+    const callback = function(mutationsList) {
+      for (const mutation of mutationsList) {
+        const target = mutation.target;
+
+        cb(target);
+      }
+    };
+
+    const observer = new MutationObserver(callback);
+
+    const config = {
+      childList: true,
+      subtree: true
+    };
+
+    observer.observe(node, config);
   },
 
   beforeInit() {
@@ -212,11 +288,11 @@ const issuesEnhancer = {
     this.repository = arr[2];
 
     // Read it using the storage API
-    chrome.storage.sync.get(["personalAccessToken"], function (items) {
+    chrome.storage.sync.get(["personalAccessToken"], function(items) {
       self.token = items.personalAccessToken;
       self.init();
     });
-  },
+  }
 };
 
 issuesEnhancer.beforeInit();
