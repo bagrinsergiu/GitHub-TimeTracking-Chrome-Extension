@@ -1,1 +1,2 @@
-# GitHub-TimeTracking-Chrome-Extension
+## Install
+
