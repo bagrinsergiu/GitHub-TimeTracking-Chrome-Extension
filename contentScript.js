@@ -84,13 +84,13 @@ const issuesEnhancer = {
 
     $wrapper
       .contents()
-      .filter(function () {
+      .filter(function() {
         return (
           this.nodeType == 8 &&
           this.nodeValue.startsWith("GitHubIssuesEnhancements=")
         );
       })
-      .each(function (i, e) {
+      .each(function(i, e) {
         const json = e.nodeValue
           .replace("GitHubIssuesEnhancements=", "")
           .trim();
@@ -98,9 +98,9 @@ const issuesEnhancer = {
           obj = JSON.parse(json);
           metadata = {
             ...{
-              estimated: "",
+              estimated: ""
             },
-            ...obj,
+            ...obj
           };
         } catch (e) {
           console.log(e);
@@ -125,13 +125,13 @@ const issuesEnhancer = {
     let found = false;
     $wrapper
       .contents()
-      .filter(function () {
+      .filter(function() {
         return (
           this.nodeType == 8 &&
           this.nodeValue.startsWith("GitHubIssuesEnhancements=")
         );
       })
-      .each(function (i, e) {
+      .each(function(i, e) {
         found = true;
         e.nodeValue = "GitHubIssuesEnhancements=" + JSON.stringify(metadata);
       });
@@ -150,15 +150,15 @@ const issuesEnhancer = {
         url: `https://api.github.com/repos/${self.username}/${self.repository}/issues/${id}`,
         dataType: "json",
         type: "GET",
-        beforeSend: function (xhr) {
+        beforeSend: function(xhr) {
           xhr.setRequestHeader("Authorization", "token " + self.token);
         },
-        success: function (data) {
+        success: function(data) {
           //console.log(data);
         },
-        error: function (data) {
+        error: function(data) {
           //console.log(data);
-        },
+        }
       });
     } catch (e) {
       console.log(e);
@@ -172,19 +172,19 @@ const issuesEnhancer = {
     $.ajax({
       url: `https://api.github.com/repos/${self.username}/${self.repository}/issues/${id}`,
       type: "POST",
-      beforeSend: function (xhr) {
+      beforeSend: function(xhr) {
         xhr.setRequestHeader("Authorization", "token " + self.token);
       },
       data: JSON.stringify({
-        body: body,
-      }),
+        body: body
+      })
     });
   },
 
   init() {
     const self = this;
 
-    $(".repository-content").each(function () {
+    $(".repository-content").each(function() {
       const $this = $(this);
       const $controls = $(html);
 
@@ -194,7 +194,7 @@ const issuesEnhancer = {
       self.getIssueMetadata($this);
     });
 
-    $(".estimated").change(function (e) {
+    $(".estimated").change(function(e) {
       const $this = $(this);
       const $issueRow = $this.closest(".repository-content");
       const metadata = $issueRow.data("metadata");
@@ -209,8 +209,10 @@ const issuesEnhancer = {
     if ($project.length) {
       const doingColumn = $(
         ".js-project-columns-container .project-column"
-      ).filter(function () {
-        const title = $(this).find(".js-project-column-name").html();
+      ).filter(function() {
+        const title = $(this)
+          .find(".js-project-column-name")
+          .html();
 
         return title.includes("Doing..");
       });
@@ -220,7 +222,7 @@ const issuesEnhancer = {
 
         self.updateProjectColumn(doingColumn);
 
-        const handleUpdate = (column) => {
+        const handleUpdate = column => {
           self.updateProjectColumn($(column));
         };
 
@@ -232,13 +234,12 @@ const issuesEnhancer = {
   updateProjectColumn($column) {
     const self = this;
 
-    $column.find("article.issue-card").each(function () {
+    $column.find("article.issue-card").each(function() {
       const $card = $(this);
-      const $node = $card.find(".js-project-card-issue-link");
-      const $dataHello = $node.find(".estimationEmpty");
+      const $estimatedEmpty = $card.find(".estimationEmpty");
       const issueId = self.getIssueId($card);
 
-      self.getIssue(issueId).then((data) => {
+      self.getIssue(issueId).then(data => {
         const metadata = self.parseBody(data.body);
 
         let htmlContent = "Estimate: " + metadata.estimated;
@@ -249,8 +250,8 @@ const issuesEnhancer = {
           estimationEmpty = "#d73a4a";
         }
 
-        if ($dataHello.length) {
-          $dataHello.html(htmlContent);
+        if ($estimatedEmpty.length) {
+          $estimatedEmpty.html(htmlContent);
         } else {
           const html =
             `<div class="estimationEmpty" style="background-color: ` +
@@ -263,7 +264,7 @@ const issuesEnhancer = {
   },
 
   mutationObserver(node, cb) {
-    const callback = function (mutationsList) {
+    const callback = function(mutationsList) {
       for (const mutation of mutationsList) {
         const target = mutation.target;
 
@@ -275,7 +276,7 @@ const issuesEnhancer = {
 
     const config = {
       childList: true,
-      subtree: true,
+      subtree: true
     };
 
     observer.observe(node, config);
@@ -290,11 +291,11 @@ const issuesEnhancer = {
     this.repository = arr[2];
 
     // Read it using the storage API
-    chrome.storage.sync.get(["personalAccessToken"], function (items) {
+    chrome.storage.sync.get(["personalAccessToken"], function(items) {
       self.token = items.personalAccessToken;
       self.init();
     });
-  },
+  }
 };
 
 issuesEnhancer.beforeInit();
