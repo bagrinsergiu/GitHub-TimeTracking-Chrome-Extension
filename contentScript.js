@@ -4,45 +4,43 @@ const html = `<div id="partial-users-participants" class="discussion-sidebar-ite
     <div class="discussion-sidebar-heading text-bold">
       Estimate
     </div>
-    <div class="participation-avatars d-flex flex-wrap">
-    
-    <div class="estimated-container">   
-                    <select class="form-select select-sm d-block estimated" style="width:120px;" title="Estimated Time">
-                    <option value="">(none)</option>
-                        <optgroup label="Minutes">
-                        <option value="15 Minutes">15 Minutes</option>
-                        <option value="30 Minutes">30 Minutes</option>                                           
-                     </optgroup>
-                      <optgroup label="Hours">
-                        <option value="1 Hour">1 Hour </option>
-                        <option value="2 Hours">2 Hours</option>
-                        <option value="3 Hours">3 Hours</option>
-                        <option value="4 Hours">4 Hours</option>
-                        <option value="5 Hours">5 Hours</option>
-                        <option value="6 Hours">6 Hours</option>
-                        <option value="7 Hours">7 Hours</option>
-                        <option value="8 Hours">8 Hours</option>                      
-                      </optgroup>
-                      <optgroup label="Days">
-                        <option value="1 Day">1 Day </option>
-                        <option value="2 Days">2 Days</option>
-                        <option value="3 Days">3 Days</option>
-                        <option value="4 Days">4 Days</option>
-                        <option value="5 Days">5 Days</option>
-                      </optgroup>
-                      <optgroup label="Weeks">
-                        <option value="1 Week">1 Week </option>
-                        <option value="2 Weeks">2 Weeks</option>
-                        <option value="3 Weeks">3 Weeks</option>
-                        <option value="4 Weeks">4 Weeks</option>
-                      </optgroup>
-                      <optgroup label="Months">
-                        <option value="1 Month">1 Month </option>
-                        <option value="2 Months">2 Months</option>
-                      </optgroup>                      
-                    </select>                
-                </div>
-    
+    <div class="participation-avatars d-flex flex-wrap">    
+      <div class="estimated-container">   
+        <select class="form-select select-sm d-block estimated" style="width:200px;" title="Estimated Time">
+          <option value="">(none)</option>
+            <optgroup label="Minutes">
+            <option value="15 Minutes">15 Minutes</option>
+            <option value="30 Minutes">30 Minutes</option>                                           
+          </optgroup>
+          <optgroup label="Hours">
+            <option value="1 Hour">1 Hour </option>
+            <option value="2 Hours">2 Hours</option>
+            <option value="3 Hours">3 Hours</option>
+            <option value="4 Hours">4 Hours</option>
+            <option value="5 Hours">5 Hours</option>
+            <option value="6 Hours">6 Hours</option>
+            <option value="7 Hours">7 Hours</option>
+            <option value="8 Hours">8 Hours</option>                      
+          </optgroup>
+          <optgroup label="Days">
+            <option value="1 Day">1 Day </option>
+            <option value="2 Days">2 Days</option>
+            <option value="3 Days">3 Days</option>
+            <option value="4 Days">4 Days</option>
+            <option value="5 Days">5 Days</option>
+          </optgroup>
+          <optgroup label="Weeks">
+            <option value="1 Week">1 Week </option>
+            <option value="2 Weeks">2 Weeks</option>
+            <option value="3 Weeks">3 Weeks</option>
+            <option value="4 Weeks">4 Weeks</option>
+          </optgroup>
+          <optgroup label="Months">
+            <option value="1 Month">1 Month </option>
+            <option value="2 Months">2 Months</option>
+          </optgroup>                      
+        </select>                
+      </div>    
     </div>
   </div>
 </div>`;
