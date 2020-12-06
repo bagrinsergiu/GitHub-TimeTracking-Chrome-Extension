@@ -209,7 +209,7 @@ const issuesEnhancer = {
     });
 
     // in Projects
-    const $project = $(".aaaproject-columns-container");
+    const $project = $(".project-columns-container");
 
     if ($project.length) {
       const doingColumn = $(
