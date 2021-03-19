@@ -4,13 +4,13 @@ const html = `<div id="partial-users-participants" class="discussion-sidebar-ite
     <div class="discussion-sidebar-heading text-bold">
       Estimate
     </div>
-    <div class="participation-avatars d-flex flex-wrap">    
-      <div class="estimated-container">   
+    <div class="participation-avatars d-flex flex-wrap">
+      <div class="estimated-container">
         <select class="form-select select-sm d-block estimated" style="width:200px;" title="Estimated Time">
           <option value="">(none)</option>
             <optgroup label="Minutes">
             <option value="15 Minutes">15 Minutes</option>
-            <option value="30 Minutes">30 Minutes</option>                                           
+            <option value="30 Minutes">30 Minutes</option>
           </optgroup>
           <optgroup label="Hours">
             <option value="1 Hour">1 Hour </option>
@@ -20,7 +20,7 @@ const html = `<div id="partial-users-participants" class="discussion-sidebar-ite
             <option value="5 Hours">5 Hours</option>
             <option value="6 Hours">6 Hours</option>
             <option value="7 Hours">7 Hours</option>
-            <option value="8 Hours">8 Hours</option>                      
+            <option value="8 Hours">8 Hours</option>
           </optgroup>
           <optgroup label="Days">
             <option value="1 Day">1 Day </option>
@@ -38,17 +38,109 @@ const html = `<div id="partial-users-participants" class="discussion-sidebar-ite
           <optgroup label="Months">
             <option value="1 Month">1 Month </option>
             <option value="2 Months">2 Months</option>
-          </optgroup>                      
-        </select>                
-      </div>    
+          </optgroup>
+        </select>
+      </div>
     </div>
   </div>
 </div>`;
+
+const defaultMetaData = {
+  estimated: "",
+  time: null,
+  startAt: null
+};
+const estimationCSS = `
+  margin: 5px 0;
+  color: #ffffff;
+  padding: 5px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 18px;
+  border: 1px solid transparent;
+  border-radius: 2em;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+`;
 
 const issuesEnhancer = {
   token: null,
   username: null,
   repository: null,
+  timers: new Map(),
+
+  clearIssueTimes(issueId, body, metadata) {
+    if (metadata.startAt !== null || metadata.time !== null) {
+      metadata.startAt = null;
+      metadata.time = null;
+      this.setIssueMetadata(issueId, body, metadata);
+      console.log("updating......");
+    }
+
+    console.log("Done");
+  },
+
+  createTimer($node, startTime) {
+    if (!this.timers.has($node)) {
+      let minutes = startTime;
+      let second = 0;
+
+      const countUp = () => {
+        second++;
+
+        if (second === 59) {
+          second = 0;
+          minutes = minutes + 1;
+        }
+
+        const totalSeconds = minutes * 60 + second;
+        const hours = Math.floor(totalSeconds / (60 * 60));
+        const dividerBySeconds = totalSeconds % (60 * 60);
+        const _minutes = Math.floor(dividerBySeconds / 60);
+        const divisor_for_seconds = dividerBySeconds % 60;
+        const seconds = Math.ceil(divisor_for_seconds);
+
+        const formatTime = `${hours}:${_minutes}:${seconds}`;
+
+        $node.html(`${formatTime}`);
+      };
+
+      const timerId = setInterval(countUp, 1000);
+
+      this.timers.set($node, timerId);
+    }
+  },
+
+  clearTimer($node) {
+    const timerId = this.timers.get($node);
+
+    clearInterval(timerId);
+
+    this.timers.delete($node);
+  },
+
+  calculateTime(oldTime, time) {
+    // get total seconds between the times
+    let delta = Math.abs(oldTime - time) / 1000;
+
+    // calculate (and subtract) whole days
+    const days = Math.floor(delta / 86400);
+    delta -= days * 86400;
+
+    // calculate (and subtract) whole hours
+    const hours = Math.floor(delta / 3600) % 24;
+    delta -= hours * 3600;
+
+    // calculate (and subtract) whole minutes
+    const minutes = Math.floor(delta / 60) % 60;
+    delta -= minutes * 60;
+
+    // what's left is seconds
+    const seconds = delta % 60;
+
+    return { days, hours, minutes, seconds };
+  },
 
   getIssueId($issueRow) {
     const $node = $(
@@ -75,7 +167,7 @@ const issuesEnhancer = {
 
     const metadata = this.parseBody(data.body);
 
-    //Fill data
+    // Fill data
     $issueRow.data("issueId", issueId);
     $issueRow.data("body", data.body);
     $issueRow.data("metadata", metadata);
@@ -91,60 +183,59 @@ const issuesEnhancer = {
 
     $wrapper
       .contents()
-      .filter(function () {
+      .filter(function() {
         return (
-          this.nodeType == 8 &&
+          this.nodeType === 8 &&
           this.nodeValue.startsWith("GitHubIssuesEnhancements=")
         );
       })
-      .each(function (i, e) {
+      .each(function(i, e) {
         const json = e.nodeValue
           .replace("GitHubIssuesEnhancements=", "")
           .trim();
+
         try {
-          obj = JSON.parse(json);
-          metadata = {
-            ...{
-              estimated: "",
-            },
-            ...obj,
-          };
+          const obj = JSON.parse(json);
+          metadata = { ...defaultMetaData, ...obj };
         } catch (e) {
           console.log(e);
         }
       });
 
     if (metadata == null) {
-      metadata = { estimated: "" };
-      $wrapper.append('\n\n\n<!--GitHubIssuesEnhancements={"estimated":""}-->');
+      metadata = defaultMetaData;
+      const enhancements = JSON.stringify(defaultMetaData);
+      $wrapper.append(
+        `'\n\n\n<!--GitHubIssuesEnhancements=${enhancements}-->'`
+      );
     }
 
     return metadata;
   },
 
-  setIssueMetadata($issueRow) {
-    const issueId = $issueRow.data("issueId");
-    const body = $issueRow.data("body");
-    const metadata = $issueRow.data("metadata");
-
+  setIssueMetadata(issueId, body, metadata) {
     const $wrapper = $("<div></div>").append(body);
-
     let found = false;
+
     $wrapper
       .contents()
-      .filter(function () {
+      .filter(function() {
         return (
-          this.nodeType == 8 &&
+          this.nodeType === 8 &&
           this.nodeValue.startsWith("GitHubIssuesEnhancements=")
         );
       })
-      .each(function (i, e) {
+      .each(function(i, e) {
         found = true;
         e.nodeValue = "GitHubIssuesEnhancements=" + JSON.stringify(metadata);
       });
 
-    if (!found)
-      $wrapper.append('\n\n\n<!--GitHubIssuesEnhancements={"estimated":""}-->');
+    if (!found) {
+      const enhancements = JSON.stringify(defaultMetaData);
+      $wrapper.append(
+        `'\n\n\n<!--GitHubIssuesEnhancements=${enhancements}-->'`
+      );
+    }
 
     this.updateIssue(issueId, $wrapper.html());
   },
@@ -157,15 +248,9 @@ const issuesEnhancer = {
         url: `https://api.github.com/repos/${self.username}/${self.repository}/issues/${id}`,
         dataType: "json",
         type: "GET",
-        beforeSend: function (xhr) {
+        beforeSend: function(xhr) {
           xhr.setRequestHeader("Authorization", "token " + self.token);
-        },
-        success: function (data) {
-          //console.log(data);
-        },
-        error: function (data) {
-          //console.log(data);
-        },
+        }
       });
     } catch (e) {
       console.log(e);
@@ -179,19 +264,17 @@ const issuesEnhancer = {
     $.ajax({
       url: `https://api.github.com/repos/${self.username}/${self.repository}/issues/${id}`,
       type: "POST",
-      beforeSend: function (xhr) {
+      beforeSend: function(xhr) {
         xhr.setRequestHeader("Authorization", "token " + self.token);
       },
-      data: JSON.stringify({
-        body: body,
-      }),
+      data: JSON.stringify({ body })
     });
   },
 
   init() {
     const self = this;
 
-    $(".repository-content").each(function () {
+    $(".repository-content").each(function() {
       const $this = $(this);
       const $controls = $(html);
 
@@ -199,75 +282,134 @@ const issuesEnhancer = {
       self.getIssueMetadata($this);
     });
 
-    $(".estimated").change(function (e) {
+    $(".estimated").change(function(e) {
       const $this = $(this);
       const $issueRow = $this.closest(".repository-content");
       const metadata = $issueRow.data("metadata");
-
+      const issueId = $issueRow.data("issueId");
+      const body = $issueRow.data("body");
       metadata.estimated = $this.val();
-      self.setIssueMetadata($issueRow);
+
+      self.setIssueMetadata(issueId, body, metadata);
     });
 
     // in Projects
     const $project = $(".project-columns-container");
 
     if ($project.length) {
-      const doingColumn = $(
-        ".js-project-columns-container .project-column"
-      ).filter(function () {
-        const title = $(this).find(".js-project-column-name").html();
+      $(".js-project-columns-container .project-column").each(function() {
+        const $node = $(this);
+        const title = $node.find(".js-project-column-name").html();
+        const isDoing = title.includes("Doing..");
+        const type = isDoing ? "doing" : "others";
 
-        return title.includes("Doing..");
-      });
+        const node = $node.get(0);
+        self.updateProjectColumn($node, type);
 
-      if (doingColumn.length) {
-        const node = doingColumn.get(0);
-
-        self.updateProjectColumn(doingColumn);
-
-        const handleUpdate = (column) => {
-          self.updateProjectColumn($(column));
+        const handleUpdate = column => {
+          if (!column.closest(".estimationEmpty, .d-none")) {
+            self.updateProjectColumn($(column), type);
+          }
         };
 
         self.mutationObserver(node, handleUpdate);
-      }
+      });
     }
   },
 
-  updateProjectColumn($column) {
+  updateProjectColumn($column, type) {
     const self = this;
 
-    $column.find("article.issue-card").each(function () {
+    $column.find("article.issue-card").each(function() {
       const $card = $(this);
       const $estimatedEmpty = $card.find(".estimationEmpty");
       const issueId = self.getIssueId($card);
 
-      self.getIssue(issueId).then((data) => {
+      self.getIssue(issueId).then(data => {
         const metadata = self.parseBody(data.body);
 
-        let htmlContent = "Estimate: " + metadata.estimated;
-        let estimationEmpty = "#0e8a16";
+        // set timer
+        const $timer = $estimatedEmpty.find(".estimation__timer");
 
-        if (metadata.estimated === "") {
-          htmlContent = "Estimate is needed!";
-          estimationEmpty = "#d73a4a";
+        if ($timer.length) {
+          self.clearTimer($timer);
         }
 
-        if ($estimatedEmpty.length) {
-          $estimatedEmpty.html(htmlContent);
-        } else {
-          const html =
-            `<div class="estimationEmpty" style="background-color: ` +
-            estimationEmpty +
-            `; margin: 5px 0; color: #ffffff; padding: 5px 12px; font-size: 12px; font-weight: 500; line-height: 18px; border: 1px solid transparent; border-radius: 2em;">${htmlContent}</div>`;
-          $card.find(".js-project-card-issue-link").after(html);
+        switch (type) {
+          case "doing": {
+            let htmlContent = `Estimate: ${metadata.estimated}`;
+            let estimationEmpty = "#0e8a16";
+
+            if (metadata.time === null) {
+              metadata.time = 0;
+              self.setIssueMetadata(issueId, data.body, metadata);
+            }
+
+            if (metadata.startAt === null) {
+              metadata.startAt = `${new Date()}`;
+              self.setIssueMetadata(issueId, data.body, metadata);
+            }
+
+            if (metadata.estimated === "") {
+              htmlContent = "Estimate is needed!";
+              estimationEmpty = "#d73a4a";
+            }
+
+            const $timerHTML = `<div class="estimation__timer">${metadata.time}</div>`;
+
+            if ($estimatedEmpty.length) {
+              $estimatedEmpty.html(`${htmlContent} ${$timerHTML}`);
+            } else {
+              const html = `
+                <div class="estimationEmpty" style="background-color: ${estimationEmpty}; ${estimationCSS}">
+                  ${htmlContent}
+                  ${$timerHTML}
+                </div>`;
+
+              // paste html after 1 frame
+              requestAnimationFrame(() => {
+                $card.find(".js-project-card-issue-link").after(html);
+              });
+            }
+
+            // set timer
+            setTimeout(() => {
+              const $timer = $card.find(".estimation__timer");
+
+              if ($timer.length) {
+                self.createTimer($timer, metadata.time);
+              }
+            }, 400);
+
+            break;
+          }
+          case "others": {
+            if (metadata.startAt) {
+              const startAt = new Date(metadata.startAt);
+              const endTime = new Date();
+              const time = metadata.time ?? 0;
+              const diffTime = self.calculateTime(startAt, endTime).minutes;
+
+              metadata.time = time + diffTime;
+              metadata.startAt = null;
+              self.setIssueMetadata(issueId, data.body, metadata);
+
+              // set timer
+              const $timer = $estimatedEmpty.find(".estimation__timer");
+
+              if ($timer.length) {
+                self.clearTimer($timer);
+              }
+            }
+            break;
+          }
         }
       });
     });
   },
 
   mutationObserver(node, cb) {
-    const callback = function (mutationsList) {
+    const callback = mutationsList => {
       for (const mutation of mutationsList) {
         const target = mutation.target;
 
@@ -279,7 +421,7 @@ const issuesEnhancer = {
 
     const config = {
       childList: true,
-      subtree: true,
+      subtree: true
     };
 
     observer.observe(node, config);
@@ -294,11 +436,11 @@ const issuesEnhancer = {
     this.repository = arr[2];
 
     // Read it using the storage API
-    chrome.storage.sync.get(["personalAccessToken"], function (items) {
+    chrome.storage.sync.get(["personalAccessToken"], function(items) {
       self.token = items.personalAccessToken;
       self.init();
     });
-  },
+  }
 };
 
 issuesEnhancer.beforeInit();
