@@ -95,13 +95,9 @@ const issuesEnhancer = {
         }
 
         const totalSeconds = minutes * 60 + second;
-        const hours = Math.floor(totalSeconds / (60 * 60));
-        const dividerBySeconds = totalSeconds % (60 * 60);
-        const _minutes = Math.floor(dividerBySeconds / 60);
-        const divisor_for_seconds = dividerBySeconds % 60;
-        const seconds = Math.ceil(divisor_for_seconds);
-
-        const formatTime = `${hours}:${_minutes}:${seconds}`;
+        const formatTime = new Date(totalSeconds * 1000)
+          .toISOString()
+          .substr(11, 8);
 
         $node.html(`${formatTime}`);
       };
@@ -163,17 +159,19 @@ const issuesEnhancer = {
     const issueId = this.getIssueId($issueRow);
     if (issueId == null) return;
 
-    const data = await this.getIssue(issueId);
+    await this.getIssue(issueId).then(data => {
+      if (data) {
+        const metadata = this.parseBody(data.body);
 
-    const metadata = this.parseBody(data.body);
+        // Fill data
+        $issueRow.data("issueId", issueId);
+        $issueRow.data("body", data.body);
+        $issueRow.data("metadata", metadata);
 
-    // Fill data
-    $issueRow.data("issueId", issueId);
-    $issueRow.data("body", data.body);
-    $issueRow.data("metadata", metadata);
-
-    // Fill controls
-    $issueRow.find(".estimated").val(metadata.estimated);
+        // Fill controls
+        $issueRow.find(".estimated").val(metadata.estimated);
+      }
+    });
   },
 
   parseBody(body) {
