@@ -69,6 +69,7 @@ const issuesEnhancer = {
   username: null,
   repository: null,
   timers: new Map(),
+  cards: new Map(),
 
   clearIssueTimes(issueId, body, metadata) {
     if (metadata.startAt !== null || metadata.time !== null) {
@@ -81,39 +82,41 @@ const issuesEnhancer = {
     console.log("Done");
   },
 
-  createTimer($node, startTime) {
-    if (!this.timers.has($node)) {
-      let minutes = startTime;
-      let second = 0;
+  createTimer(cardId, startTime) {
+    const $card = this.getCardById(cardId);
 
-      const countUp = () => {
-        second++;
+    this.clearTimer(cardId);
 
-        if (second === 59) {
-          second = 0;
-          minutes = minutes + 1;
-        }
+    let minutes = startTime;
+    let second = 0;
 
-        const totalSeconds = minutes * 60 + second;
-        const formatTime = new Date(totalSeconds * 1000)
-          .toISOString()
-          .substr(11, 8);
+    const countUp = () => {
+      second++;
 
-        $node.html(`${formatTime}`);
-      };
+      if (second === 59) {
+        second = 0;
+        minutes = minutes + 1;
+      }
 
-      const timerId = setInterval(countUp, 1000);
+      const totalSeconds = minutes * 60 + second;
+      const formatTime = new Date(totalSeconds * 1000)
+        .toISOString()
+        .substr(11, 8);
 
-      this.timers.set($node, timerId);
-    }
+      $card.find(".estimation__timer").html(formatTime);
+    };
+
+    const timerId = setInterval(countUp, 1000);
+
+    this.timers.set(cardId, timerId);
   },
 
-  clearTimer($node) {
-    const timerId = this.timers.get($node);
+  clearTimer(cardId) {
+    const timerId = this.timers.get(cardId);
 
     clearInterval(timerId);
 
-    this.timers.delete($node);
+    this.timers.delete(cardId);
   },
 
   calculateTime(oldTime, time) {
@@ -269,6 +272,16 @@ const issuesEnhancer = {
     });
   },
 
+  getCardById(cardId) {
+    const $card = $(`#card-${cardId}`);
+
+    if ($card.children().length) {
+      return $card;
+    }
+
+    return this.getCardById(cardId);
+  },
+
   init() {
     const self = this;
 
@@ -299,89 +312,109 @@ const issuesEnhancer = {
         const $node = $(this);
         const title = $node.find(".js-project-column-name").html();
         const isDoing = title.includes("Doing..");
-        const type = isDoing ? "doing" : "others";
 
-        const node = $node.get(0);
-        self.updateProjectColumn($node, type);
+        if (isDoing) {
+          const node = $node.get(0);
+          self.updateProjectColumn($node);
 
-        const handleUpdate = column => {
-          if (!column.closest(".estimationEmpty, .d-none")) {
-            self.updateProjectColumn($(column), type);
-          }
-        };
+          const handleUpdate = column => {
+            if (!column.closest(".estimationEmpty, .d-none")) {
+              self.updateProjectColumn($(column));
+            }
+          };
 
-        self.mutationObserver(node, handleUpdate);
+          self.mutationObserver(node, handleUpdate);
+        }
       });
     }
   },
 
-  updateProjectColumn($column, type) {
+  generateCardHTML($card, metadata) {
+    const cardId = $card.data().cardId;
+    const $estimatedEmpty = $card.find(".estimationEmpty");
+    let htmlContent = `Estimate: ${metadata.estimated}`;
+    let estimationEmpty = "#0e8a16";
+
+    if (metadata.estimated === "") {
+      htmlContent = "Estimate is needed!";
+      estimationEmpty = "#d73a4a";
+    }
+
+    const $timerHTML = `<div class="estimation__timer">${metadata.time}</div>`;
+
+    if ($estimatedEmpty.length) {
+      $estimatedEmpty.html(`${htmlContent} ${$timerHTML}`);
+    } else {
+      const html = `
+        <div class="estimationEmpty" style="background-color: ${estimationEmpty}; ${estimationCSS}">
+          ${htmlContent}
+          ${$timerHTML}
+        </div>`;
+
+      // paste html after 1 frame
+      requestAnimationFrame(() => {
+        $card.find(".js-project-card-issue-link").after(html);
+      });
+    }
+
+    // set timer
+    this.createTimer(cardId, metadata.time);
+  },
+
+  updateProjectColumn($column) {
     const self = this;
 
-    $column.find("article.issue-card").each(function() {
+    const currentCards = new Map();
+
+    const $columns = $column.find("article.issue-card");
+
+    $columns.each(function() {
       const $card = $(this);
-      const $estimatedEmpty = $card.find(".estimationEmpty");
-      const issueId = self.getIssueId($card);
+      const cardId = $card.data().cardId;
 
-      self.getIssue(issueId).then(data => {
-        const metadata = self.parseBody(data.body);
+      currentCards.set(cardId, $card);
 
-        // set timer
-        const $timer = $estimatedEmpty.find(".estimation__timer");
+      if (!self.cards.has(cardId)) {
+        self.cards.set(cardId, { metadata: null });
 
-        if ($timer.length) {
-          self.clearTimer($timer);
-        }
+        const issueId = self.getIssueId($card);
 
-        switch (type) {
-          case "doing": {
-            let htmlContent = `Estimate: ${metadata.estimated}`;
-            let estimationEmpty = "#0e8a16";
+        self.getIssue(issueId).then(data => {
+          const metadata = self.parseBody(data.body);
 
-            if (metadata.time === null) {
-              metadata.time = 0;
-              self.setIssueMetadata(issueId, data.body, metadata);
-            }
+          self.cards.set(cardId, { metadata });
 
-            if (metadata.startAt === null) {
-              metadata.startAt = `${new Date()}`;
-              self.setIssueMetadata(issueId, data.body, metadata);
-            }
-
-            if (metadata.estimated === "") {
-              htmlContent = "Estimate is needed!";
-              estimationEmpty = "#d73a4a";
-            }
-
-            const $timerHTML = `<div class="estimation__timer">${metadata.time}</div>`;
-
-            if ($estimatedEmpty.length) {
-              $estimatedEmpty.html(`${htmlContent} ${$timerHTML}`);
-            } else {
-              const html = `
-                <div class="estimationEmpty" style="background-color: ${estimationEmpty}; ${estimationCSS}">
-                  ${htmlContent}
-                  ${$timerHTML}
-                </div>`;
-
-              // paste html after 1 frame
-              requestAnimationFrame(() => {
-                $card.find(".js-project-card-issue-link").after(html);
-              });
-            }
-
-            // set timer
-            setTimeout(() => {
-              const $timer = $card.find(".estimation__timer");
-
-              if ($timer.length) {
-                self.createTimer($timer, metadata.time);
-              }
-            }, 400);
-
-            break;
+          if (metadata.time === null) {
+            metadata.time = 0;
+            self.setIssueMetadata(issueId, data.body, metadata);
           }
-          case "others": {
+
+          if (metadata.startAt === null) {
+            metadata.startAt = `${new Date()}`;
+            self.setIssueMetadata(issueId, data.body, metadata);
+          }
+
+          self.generateCardHTML($card, metadata);
+        });
+      } else {
+        const { metadata } = self.cards.get(cardId);
+        const $card = self.getCardById(cardId);
+
+        if (metadata && $card.length) {
+          self.generateCardHTML($card, metadata);
+        }
+      }
+    });
+
+    if ($columns.length) {
+      [...this.cards].forEach(([cardId]) => {
+        if (!currentCards.has(cardId)) {
+          const $card = self.getCardById(cardId);
+          const issueId = self.getIssueId($card);
+
+          self.getIssue(issueId).then(data => {
+            const metadata = self.parseBody(data.body);
+
             if (metadata.startAt) {
               const startAt = new Date(metadata.startAt);
               const endTime = new Date();
@@ -391,19 +424,14 @@ const issuesEnhancer = {
               metadata.time = time + diffTime;
               metadata.startAt = null;
               self.setIssueMetadata(issueId, data.body, metadata);
-
-              // set timer
-              const $timer = $estimatedEmpty.find(".estimation__timer");
-
-              if ($timer.length) {
-                self.clearTimer($timer);
-              }
             }
-            break;
-          }
+          });
+
+          self.cards.delete(cardId);
+          self.clearTimer(cardId);
         }
       });
-    });
+    }
   },
 
   mutationObserver(node, cb) {
