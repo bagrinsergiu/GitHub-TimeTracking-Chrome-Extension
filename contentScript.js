@@ -206,9 +206,7 @@ const issuesEnhancer = {
     if (metadata == null) {
       metadata = defaultMetaData;
       const enhancements = JSON.stringify(defaultMetaData);
-      $wrapper.append(
-        `'\n\n\n<!--GitHubIssuesEnhancements=${enhancements}-->'`
-      );
+      $wrapper.append(`\n\n\n<!--GitHubIssuesEnhancements=${enhancements}-->`);
     }
 
     return metadata;
@@ -233,9 +231,7 @@ const issuesEnhancer = {
 
     if (!found) {
       const enhancements = JSON.stringify(defaultMetaData);
-      $wrapper.append(
-        `'\n\n\n<!--GitHubIssuesEnhancements=${enhancements}-->'`
-      );
+      $wrapper.append(`\n\n\n<!--GitHubIssuesEnhancements=${enhancements}-->`);
     }
 
     this.updateIssue(issueId, $wrapper.html());
@@ -406,7 +402,9 @@ const issuesEnhancer = {
       }
     });
 
-    if ($columns.length) {
+    const noCards = $column.children().length === 0;
+
+    if ($columns.length || noCards) {
       [...this.cards].forEach(([cardId]) => {
         if (!currentCards.has(cardId)) {
           const $card = self.getCardById(cardId);
